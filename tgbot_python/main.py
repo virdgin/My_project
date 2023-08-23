@@ -21,7 +21,6 @@ def start(message):
     for i in cites:
         keyword.add(types.KeyboardButton(i[1]))
     bot.send_message(message.chat.id, 'Выбери город', reply_markup=keyword)
-    bot.send_message(message.chat.id, message)
     bot.register_next_step_handler(message, get_city, cites)
 
 
@@ -95,7 +94,7 @@ def view_problem(message, drugs=None):
     text = ''
     for i in drugs:
         if i[1].lower() == drug.lower():
-            id_drug = str(i[0])
+            id_drug = i[0]
             id_problem = i[3]
             break
     keyword = types.ReplyKeyboardMarkup()
@@ -106,37 +105,50 @@ def view_problem(message, drugs=None):
     keyword.add(types.KeyboardButton('Да'),
                 types.KeyboardButton('Посмотреть комментарии'))
     bot.send_message(message.chat.id, text, reply_markup=keyword)
-    bot.register_next_step_handler(message, view_comment, id_drug)
+    bot.register_next_step_handler(message, view_comment)
 
 
-def view_comment(message, id_drug):
+def view_comment(message):
     text = message.text
-    if text.lower() == 'посмотреть комментарии':
+    if text.lower() == 'да':
+        pass
+    else:
         comments = data.get_comments(id_drug)
         text = ''
+        keyword = types.ReplyKeyboardMarkup()
         if len(comments) == 0:
             text = 'Коментариев нет. Добавить?'
         else:
             for el in comments:
                 text += f'{el[0]} от {el[2]}: \n{el[1]}\n'
-        keyword = types.ReplyKeyboardMarkup()
         keyword.add(types.KeyboardButton('Добавить комментарий'),
                     types.KeyboardButton('В начало'))
-        bot.send_message(message.chat_id, text, reply_markup=keyword)
-        bot.register_next_step_handler(message, comments, id_drug)
+        bot.send_message(message.chat.id, text, reply_markup=keyword)
+        bot.register_next_step_handler(message, comment)
 
 
-def comments(message, id_drug):
-    if message.text.lower() == 'в начало':
+def comment(message):
+    text = message.text
+    if text.lower() == 'в начало':
         start(message)
-    elif message.text.lower() == 'добавить комментарий':
-        user = {}
-        user['id_drug'] = id_drug
-        user['username'] = message.from_user.username
-        user['first_name'] = message.from_user.first_name
-        user['last_name'] = message.from_user.last_name
-        bot.register_next_step_handler(message, data.add_comment, user)
+    user = {
+        'id_drug': id_drug,
+        'username': message.from_user.username,
+        'first_name': message.from_user.first_name,
+        'last_name': message.from_user.last_name
+    }
+    bot.send_message(
+        message.chat.id, 'Напишите комментарий. Затем нажмите отправить.')
+    bot.register_next_step_handler(message, add_comment, user)
+
+
+def add_comment(message, user):
+    if data.add_comment_db(message.text, user):
+        bot.send_message(message.chat.id, 'Комментарий добавлен')
+    else:
+        bot.send_message(message.chat.id, 'Возникла ошибка. Попробуйте еще раз.')
+        comment(message)
 
 
 # keep_alive()
-bot.polling(non_stop=True)
+bot.polling(non_stop=True, interval=0)

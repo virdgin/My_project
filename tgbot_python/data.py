@@ -1,5 +1,6 @@
 '''module for work with bd'''
 import sqlite3
+from datetime import datetime
 
 
 def get_cites():
@@ -66,11 +67,25 @@ def get_comments(id_drug):
     table = sqlite3.connect('table.sql')
     cur = table.cursor()
     comments = []
-    for i in cur.execute("SELECT date,  discriptions, user_name FROM comments WHERE drugs_id=:id_drug", {'id_drug': id_drug}):
+    for i in cur.execute("SELECT date, descriptions, user_name FROM comments WHERE drugs_id=:id_drug", {'id_drug': id_drug}):
         comments.append(i)
     cur.close()
     table.close()
     return comments
 
-def add_comment(user):
-    pass
+
+def add_comment_db(message, user):
+    """insert comment in database"""
+    try:
+        time = datetime.now().strftime('%d.%m.%Y %H:%M')
+        table = sqlite3.connect('table.sql')
+        cur = table.cursor()
+        cur.execute("INSERT INTO comments VALUES(?,?,?,?)",(time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}"))
+        table.commit()
+        cur.close()
+        table.close()
+    except:
+        cur.close()
+        table.close()
+        return False
+        

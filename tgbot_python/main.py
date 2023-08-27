@@ -143,11 +143,13 @@ def comment(message):
 
 
 def add_comment(message, user):
-    if data.add_comment_db(message.text, user):
-        bot.send_message(message.chat.id, 'Комментарий добавлен')
+    text = data.add_comment_db(message.text, user)
+    if text == 'Комментарий добавлен.':
+        bot.send_message(message.chat.id, text)
     else:
-        bot.send_message(message.chat.id, 'Возникла ошибка. Попробуйте еще раз.')
-        comment(message)
+        bot.send_message(
+            message.chat.id, 'Возникла ошибка. Попробуйте еще раз.')
+        view_comment(message)
 
 
 # keep_alive()

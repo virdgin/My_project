@@ -5,7 +5,7 @@ from datetime import datetime
 
 def get_cites():
     """getting a list cities"""
-    table = sqlite3.connect('table.sql')
+    table = sqlite3.connect('table.db')
     cur = table.cursor()
     cites = []
     for i in cur.execute("SELECT id, name FROM cites;"):
@@ -17,7 +17,7 @@ def get_cites():
 
 def get_pharmacies(id_city):
     """getting a list of pharmacies in the city"""
-    table = sqlite3.connect('table.sql')
+    table = sqlite3.connect('table.db')
     cur = table.cursor()
     pharmacy_list = []
     for i in cur.execute("SELECT * FROM pharmacies WHERE city_id=:id_city;", {'id_city': id_city}):
@@ -29,7 +29,7 @@ def get_pharmacies(id_city):
 
 def get_clinic(id_city):
     """getting a list of clinics in the city"""
-    table = sqlite3.connect('table.sql')
+    table = sqlite3.connect('table.db')
     cur = table.cursor()
     clinics_list = []
     for i in cur.execute("SELECT * FROM clinics WHERE city_id=:id_city;", {'id_city': id_city}):
@@ -41,7 +41,7 @@ def get_clinic(id_city):
 
 def get_drugs(id_pharmacy):
     """getting a list of drugs in the pharmacy"""
-    table = sqlite3.connect('table.sql')
+    table = sqlite3.connect('table.db')
     cur = table.cursor()
     drugs_list = []
     for i in cur.execute("SELECT * FROM drugs WHERE pharmacy_id=:id_pharmacy;", {'id_pharmacy': id_pharmacy}):
@@ -53,7 +53,7 @@ def get_drugs(id_pharmacy):
 
 def get_problem(id_problem):
     """getting problem information"""
-    table = sqlite3.connect('table.sql')
+    table = sqlite3.connect('table.db')
     cur = table.cursor()
     problem = cur.execute("SELECT name FROM problems WHERE id=:id_problem;", {
                           'id_problem': id_problem})
@@ -64,7 +64,7 @@ def get_problem(id_problem):
 
 def get_comments(id_drug):
     """getting comment information"""
-    table = sqlite3.connect('table.sql')
+    table = sqlite3.connect('table.db')
     cur = table.cursor()
     comments = []
     for i in cur.execute("SELECT date, descriptions, user_name FROM comments WHERE drugs_id=:id_drug", {'id_drug': id_drug}):
@@ -78,14 +78,15 @@ def add_comment_db(message, user):
     """insert comment in database"""
     try:
         time = datetime.now().strftime('%d.%m.%Y %H:%M')
-        table = sqlite3.connect('table.sql')
+        table = sqlite3.connect('table.db')
         cur = table.cursor()
-        cur.execute("INSERT INTO comments VALUES(?,?,?,?)",(time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}"))
+        cur.execute("INSERT INTO comments (date, descriptions, drugs_id, user_name)VALUES(?,?,?,?)",
+                    (time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}"))
         table.commit()
+    except sqlite3.Error:
+        return f'Произошла ошибка: {sqlite3.Error.sqlite_errorname}.\n Попробуйте позднее.'
+    else:
+        return 'Комментрий добавлен.'
+    finally:
         cur.close()
         table.close()
-    except:
-        cur.close()
-        table.close()
-        return False
-        

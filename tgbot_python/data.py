@@ -56,10 +56,10 @@ def get_problem(id_problem):
     table = sqlite3.connect('table.db')
     cur = table.cursor()
     problem = cur.execute("SELECT name FROM problems WHERE id=:id_problem;", {
-                          'id_problem': id_problem})
+                          'id_problem': id_problem}).fetchall()
     cur.close()
     table.close()
-    return problem.strip()
+    return problem[0][0].strip('\r')
 
 
 def get_comments(id_drug):
@@ -84,9 +84,37 @@ def add_comment_db(message, user):
                     (time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}"))
         table.commit()
     except sqlite3.Error:
-        return f'Произошла ошибка: {sqlite3.Error.sqlite_errorname}.\n Попробуйте позднее.'
+        return f'Произошла ошибка.\n Попробуйте позднее.'
     else:
         return 'Комментрий добавлен.'
     finally:
         cur.close()
         table.close()
+
+def view_problems():
+    """view all problems"""
+    table = sqlite3.connect('table.db')
+    cur = table.cursor()
+    problems = cur.execute("SELECT id, name FROM problems;").fetchall()
+    cur.close()
+    table.close()
+    return problems
+
+def update_problem(id_problem, drug):
+    """update problem for drug"""
+    try:
+        table =sqlite3.connect('table.db')
+        cur = table.cursor()
+        data_request = "UPDATE drugs SET problem_id = ? WHERE id = ?"
+        cur.execute(data_request, (id_problem,drug))
+        table.commit()
+    except sqlite3.Error:
+        return f'Произошла ошибка.\n Попробуйте позднее.'
+    else:
+        return 'Проблема обновленна.'
+    finally:
+        cur.close()
+        table.close()
+
+def get_pharma_in_clinic(clinic):
+    pass

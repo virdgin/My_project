@@ -16,8 +16,7 @@ id_problems = None
 @bot.message_handler(commands=['start'])
 def start(message):
     cites = data.get_cites()
-    keyword = types.ReplyKeyboardMarkup()
-    keyword.row_width = 2
+    keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     for i in cites:
         keyword.add(types.KeyboardButton(i[1]))
     bot.send_message(message.chat.id, 'Выбери город', reply_markup=keyword)
@@ -31,7 +30,7 @@ def get_city(message, cites):
         if i[1].rstrip('\r') == city.rstrip('\r'):
             id_city = str(i[0])
             break
-    keyword = types.ReplyKeyboardMarkup()
+    keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     pharmacy_btn = types.KeyboardButton('Аптеки')
     hospital_btn = types.KeyboardButton('Поликлиники')
     keyword.add(pharmacy_btn, hospital_btn)
@@ -42,8 +41,7 @@ def get_city(message, cites):
 def on_click(message):
     if message.text.lower() == 'аптеки':
         pharmacy = data.get_pharmacies(id_city)
-        keyword = types.ReplyKeyboardMarkup()
-        keyword.row_width = 3
+        keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for i in pharmacy:
             keyword.add(types.KeyboardButton(i[1]))
         bot.send_message(message.chat.id, 'Выбери аптеку',
@@ -52,8 +50,7 @@ def on_click(message):
             message, choices_street_pharmacy, pharmacy)
     elif message.text.lower() == 'поликлиники':
         clinics = data.get_clinic(id_city)
-        keyword = types.ReplyKeyboardMarkup()
-        keyword.row_width = 3
+        keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for i in clinics:
             keyword.add(types.KeyboardButton(i[1]))
         bot.send_message(message.chat.id, 'Введи улицу на котой расположенна поликлиника:',
@@ -78,8 +75,7 @@ def view_drugs(message, street_home):
             id_pharmacy = str(i[0])
             break
     drugs = data.get_drugs(id_pharmacy)
-    keyword = types.ReplyKeyboardMarkup()
-    keyword.row_width = 3
+    keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     for i in drugs:
         keyword.add(types.KeyboardButton(i[1]))
     bot.send_message(message.chat.id, 'Выбери лекарство',
@@ -97,7 +93,7 @@ def view_problem(message, drugs):
             id_drug = i[0]
             id_problem = i[3]
             break
-    keyword = types.ReplyKeyboardMarkup()
+    keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     if id_problem == 0:
         text = 'Проблем нет. Обозначить проблему?'
     else:
@@ -112,7 +108,7 @@ def view_comment(message):
     text = message.text
     if text.lower() == 'да':
         problems = data.view_problems()
-        keyword = types.ReplyKeyboardMarkup(row_width=3)
+        keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for el in problems:
             keyword.add(types.KeyboardButton(el[1].rstrip('\r')))
         bot.send_message(message.chat.id, 'Выбери', reply_markup=keyword)
@@ -186,11 +182,13 @@ def choices_hospital(message, clinics):
 def choices_house_clinic(message, clinics):
     house = message.text.lower()
     clinic = []
-    keyword = types.ReplyKeyboardMarkup()
+    name_clinic = []
+    keyword = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     for i in clinics:
         if i[4].lower() == house:
             clinic.append(i)
-            keyword.add(types.KeyboardButton(i[1]))
+            name_clinic.append(i[1])
+    keyword.add(name_clinic)
     bot.send_message(message.chat.id, 'Выбери лечебное учереждение:')
     bot.register_next_step_handler(message, view_drugs_on_clinic, clinic)
     

@@ -49,13 +49,13 @@ def on_click(message, id_city):
     elif message.text.lower() == 'аптеки':
         pharmacy = data.get_pharmacies(id_city)
         bot.send_message(
-            message.chat.id, 'Введите улицу на которой расположена аптека')
+            message.chat.id, 'Введите улицу:')
         bot.register_next_step_handler(
             message, choices_street_pharmacy, pharmacy)
     elif message.text.lower() == 'поликлиники':
         clinics = data.get_clinic(id_city)
         bot.send_message(
-            message.chat.id, 'Введи улицу на котрой расположенна поликлиника:')
+            message.chat.id, 'Введи улицу:')
         bot.register_next_step_handler(
             message, choices_street_clinic, clinics)
 
@@ -144,19 +144,20 @@ def view_problem(message, drugs):
         bot.register_next_step_handler(message, view_comment)
 
 
-def view_comment(message):
+def view_comment(message, flag=True):
     """view a comment on the drug"""
     text = message.text.lower()
     message_back['view_comment'] = message
     if text == 'назад':
         view_drugs(message_back['view_drugs'][0],
                    message_back['view_drugs'][1])
-    if text.lower() == 'да':
+    elif text.lower() == 'да' and flag:
         problems = data.view_problems()
         keyword = types.ReplyKeyboardMarkup(
             resize_keyboard=True, one_time_keyboard=True)
         for elem in problems:
             keyword.add(types.KeyboardButton(elem[1].rstrip('\r')))
+        keyword.add(types.KeyboardButton('Назад'))
         bot.send_message(message.chat.id, 'Выбери', reply_markup=keyword)
         bot.register_next_step_handler(message, up_problem, problems)
     else:
@@ -170,8 +171,11 @@ def view_comment(message):
             begin = -10 if len_comments > 10 else 0
             for i in range(begin, len_comments):
                 text += f'{comments[i][0]} от {comments[i][2]}: \n{comments[i][1]}\n'
-        keyword.add(types.KeyboardButton('Добавить комментарий'),
+        if flag:
+            keyword.add(types.KeyboardButton('Добавить комментарий'),
                     types.KeyboardButton('Назад'))
+        else:
+            keyword.add(types.KeyboardButton('В начало'), types.KeyboardButton('Назад'))
         bot.send_message(message.chat.id, text, reply_markup=keyword)
         bot.register_next_step_handler(message, comment)
 
@@ -182,7 +186,7 @@ def comment(message):
     if text.lower() == 'назад':
         view_problem(message_back['view_problem'][0],
                      message_back['view_problem'][1])
-    else:
+    elif text.lower() == 'добавить комментарий':
         username = f'@{message.from_user.username}' if message.from_user.username else ''
         first_name = message.from_user.first_name if message.from_user.first_name else ''
         last_name = message.from_user.last_name if message.from_user.last_name else ''
@@ -195,14 +199,15 @@ def comment(message):
         bot.send_message(
             message.chat.id, 'Напишите комментарий. Затем нажмите отправить.')
         bot.register_next_step_handler(message, add_comment, user)
-
+    else:
+        start(message_back['start'])
 
 def add_comment(message, user):
     """added comment for drug"""
     text = data.add_comment_db(message.text, user)
     bot.send_message(
         message.chat.id, text)
-    view_comment(message_back['view_comment'])
+    view_comment(message_back['view_comment'], flag=False)
 
 
 def up_problem(message, problems):

@@ -6,18 +6,16 @@ import data
 import config
 
 bot = telebot.TeleBot(config.TOKEN_BOT)
-id_city = None
-id_hospital = None
-id_pharmacy = None
-id_drug = None
-id_problems = None
-clinic = []
+ID_DRUG = None
 message_back = {}
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    global message_back
+    message_back = {}
     cites = data.get_cites()
+    message_back['start'] = message
     keyword = types.ReplyKeyboardMarkup(
         resize_keyboard=True, one_time_keyboard=True)
     for i in cites:
@@ -27,8 +25,8 @@ def start(message):
 
 
 def get_city(message, cites):
-    global id_city
     city = message.text
+    id_city = ''
     for i in cites:
         if i[1].rstrip('\r') == city.rstrip('\r'):
             id_city = str(i[0])
@@ -38,44 +36,75 @@ def get_city(message, cites):
     pharmacy_btn = types.KeyboardButton('Аптеки')
     hospital_btn = types.KeyboardButton('Поликлиники')
     keyword.add(pharmacy_btn, hospital_btn)
-    bot.send_message(message.chat.id, 'Выбери метод', reply_markup=keyword)
+    keyword.add(types.KeyboardButton('К выбору города'))
+    bot.send_message(message.chat.id, 'Далее', reply_markup=keyword)
     message_back['get_city'] = message
-    bot.register_next_step_handler(message, on_click)
+    bot.register_next_step_handler(message, on_click, id_city)
 
 
-def on_click(message):
-    if message.text.lower() == 'аптеки':
+def on_click(message, id_city):
+    message_back['on_click'] = [message, id_city]
+    if message.text.lower() == 'к выбору города':
+        start(message)
+    elif message.text.lower() == 'аптеки':
         pharmacy = data.get_pharmacies(id_city)
-        keyword = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, one_time_keyboard=True)
-        for i in pharmacy:
-            keyword.add(types.KeyboardButton(i[1]))
-        bot.send_message(message.chat.id, 'Выбери аптеку',
-                         reply_markup=keyword)
+        bot.send_message(
+            message.chat.id, 'Введите улицу на которой расположена аптека')
         bot.register_next_step_handler(
             message, choices_street_pharmacy, pharmacy)
     elif message.text.lower() == 'поликлиники':
         clinics = data.get_clinic(id_city)
-        message_back['on_click'] = message
         bot.send_message(
-            message.chat.id, 'Введи улицу на котой расположенна поликлиника:')
-        bot.register_next_step_handler(message, choices_hospital, clinics)
+            message.chat.id, 'Введи улицу на котрой расположенна поликлиника:')
+        bot.register_next_step_handler(
+            message, choices_street_clinic, clinics)
 
 
-def choices_street_pharmacy(message, pharma):
+def choices_street_pharmacy(message, pharmacy):
+    message_back['choices_street_pharmacy'] = [message, pharmacy]
     street_pharmacy = []
-    for i in pharma:
-        if i[1].lower() == message.text.lower():
+    for i in pharmacy:
+        if i[3].lower() == message.text.lower():
             street_pharmacy.append(i)
-    bot.send_message(message.chat.id, 'Введите улицу, дом. Через пробел')
-    bot.register_next_step_handler(message, view_drugs, street_pharmacy)
+    if len(street_pharmacy) == 0:
+        bot.send_message(message.chat.id, 'Такой улицы нет. Попробуйте снова.')
+        on_click(message_back['on_click'][0], message_back['on_click'][1])
+    else:
+        bot.send_message(message.chat.id, 'Введите дом:')
+        bot.register_next_step_handler(
+            message, choices_house_pharmacy, street_pharmacy)
 
 
-def view_drugs(message, street_home):
-    global id_pharmacy
-    street, home = message.text.lower().split()
-    for i in street_home:
-        if i[3].lower() == street and i[4].lower() == home:
+def choices_house_pharmacy(message, street_pharmacy):
+    """choices_house_pharmacy"""
+    message_back['choices_house_pharmacy'] = [message, street_pharmacy]
+    text = message.text.lower()
+    pharmacy = []
+    for i in street_pharmacy:
+        if i[4].lower() == text:
+            pharmacy.append(i)
+    if len(pharmacy) == 0:
+        bot.send_message(
+            message.chat.id, 'В данном доме нет аптеки. Попробуйте снова.')
+        choices_street_pharmacy(
+            message_back['choices_street_pharmacy'][0], message_back['choices_street_pharmacy'][1])
+    else:
+        keyword = types.ReplyKeyboardMarkup(
+            one_time_keyboard=True, resize_keyboard=True)
+        for i in pharmacy:
+            keyword.add(types.KeyboardButton(i[1]))
+        bot.send_message(message.chat.id, 'Выбери аптеку:',
+                         reply_markup=keyword)
+        bot.register_next_step_handler(message, view_drugs, pharmacy)
+
+
+def view_drugs(message, pharmacy):
+    """view drugs list"""
+    message_back['view_drugs'] = [message, pharmacy]
+    text = message.text.lower()
+    id_pharmacy = 0
+    for i in pharmacy:
+        if text == i[1].lower:
             id_pharmacy = str(i[0])
             break
     drugs = data.get_drugs(id_pharmacy)
@@ -83,57 +112,64 @@ def view_drugs(message, street_home):
         resize_keyboard=True, one_time_keyboard=True)
     for i in drugs:
         keyword.add(types.KeyboardButton(i[1]))
+    keyword.add(types.KeyboardButton('Назад'))
     bot.send_message(message.chat.id, 'Выбери лекарство',
                      reply_markup=keyword)
     bot.register_next_step_handler(message, view_problem, drugs)
 
 
 def view_problem(message, drugs):
-    drug = message.text
-    global id_drug
-    id_problem = None
-    text = ''
-    for i in drugs:
-        if i[1].lower() == drug.lower():
-            id_drug = i[0]
-            id_problem = i[3]
-            break
-    keyword = types.ReplyKeyboardMarkup(
-        resize_keyboard=True, one_time_keyboard=True)
-    if id_problem == 0:
-        text = 'Проблем нет. Обозначить проблему?'
+    """view problem from drug"""
+    message_back['view_problem'] = [message, drugs]
+    drug = message.text.lower()
+    if drug == 'назад':
+        choices_street_pharmacy(
+            message_back['choices_street_pharmacy'][0], message_back['choices_street_pharmacy'][1])
     else:
+        global ID_DRUG
+        id_problem = 0
+        text = ''
+        for i in drugs:
+            if i[1].lower() == drug.lower():
+                ID_DRUG = i[0]
+                id_problem = i[3]
+                break
+        keyword = types.ReplyKeyboardMarkup(
+            resize_keyboard=True, one_time_keyboard=True)
         text = f'Проблема: {data.get_problem(id_problem)}. Обновить проблему?'
-    keyword.add(types.KeyboardButton('Да'),
-                types.KeyboardButton('Посмотреть комментарии'))
-    bot.send_message(message.chat.id, text, reply_markup=keyword)
-    bot.register_next_step_handler(message, view_comment)
+        keyword.add(types.KeyboardButton('Да'),
+                    types.KeyboardButton('Посмотреть комментарии'))
+        keyword.add(types.KeyboardButton('Назад'))
+        bot.send_message(message.chat.id, text, reply_markup=keyword)
+        bot.register_next_step_handler(message, view_comment)
 
 
 def view_comment(message):
-    text = message.text
+    """view a comment on the drug"""
+    text = message.text.lower()
+    message_back['view_comment'] = message
+    if text == 'назад':
+        view_drugs(message_back['view_drugs'][0],
+                   message_back['view_drugs'][1])
     if text.lower() == 'да':
         problems = data.view_problems()
         keyword = types.ReplyKeyboardMarkup(
             resize_keyboard=True, one_time_keyboard=True)
-        for el in problems:
-            keyword.add(types.KeyboardButton(el[1].rstrip('\r')))
+        for elem in problems:
+            keyword.add(types.KeyboardButton(elem[1].rstrip('\r')))
         bot.send_message(message.chat.id, 'Выбери', reply_markup=keyword)
         bot.register_next_step_handler(message, up_problem, problems)
     else:
-        comments = data.get_comments(id_drug)
+        comments = data.get_comments(ID_DRUG)
         text = ''
         keyword = types.ReplyKeyboardMarkup()
         if len(comments) == 0:
             text = 'Коментариев нет. Добавить?'
         else:
             len_comments = len(comments)
-            if len_comments > 10:
-                n = -10
-            else:
-                n = 0
-            for el in range(n, len_comments):
-                text += f'{comments[el][0]} от {comments[el][2]}: \n{comments[el][1]}\n'
+            begin = -10 if len_comments > 10 else 0
+            for i in range(begin, len_comments):
+                text += f'{comments[i][0]} от {comments[i][2]}: \n{comments[i][1]}\n'
         keyword.add(types.KeyboardButton('Добавить комментарий'),
                     types.KeyboardButton('В начало'))
         bot.send_message(message.chat.id, text, reply_markup=keyword)
@@ -141,15 +177,16 @@ def view_comment(message):
 
 
 def comment(message):
+    """getting comment from user"""
     text = message.text
     if text.lower() == 'в начало':
-        start(message)
+        start(message_back['start'])
     else:
         username = f'@{message.from_user.username}' if message.from_user.username else ''
         first_name = message.from_user.first_name if message.from_user.first_name else ''
         last_name = message.from_user.last_name if message.from_user.last_name else ''
         user = {
-            'id_drug': id_drug,
+            'id_drug': ID_DRUG,
             'username': username,
             'first_name': first_name,
             'last_name': last_name
@@ -160,57 +197,71 @@ def comment(message):
 
 
 def add_comment(message, user):
+    """added comment for drug"""
     text = data.add_comment_db(message.text, user)
-    if text == 'Комментарий добавлен.':
-        bot.send_message(message.chat.id, text)
-    else:
-        bot.send_message(
-            message.chat.id, text)
-        view_comment(message)
+    bot.send_message(
+        message.chat.id, text)
+    view_comment(message_back['view_comment'])
 
 
 def up_problem(message, problems):
+    """update problem for drug"""
     text = message.text.lower()
     for i in problems:
         if i[1].rstrip('\r').lower() == text:
             bot.send_message(
-                message.chat.id, data.update_problem(int(i[0]), id_drug))
+                message.chat.id, data.update_problem(int(i[0]), ID_DRUG))
             break
 
 
-def choices_hospital(message, clinics):
+def choices_street_clinic(message, clinics):
+    """choices_street_clinic"""
     street = message.text.lower()
-    message_back['choices_hospital'] = [message, clinics]
+    message_back['choices_street_clinic'] = [message, clinics]
     clinic_on_street = []
     for i in clinics:
         if i[3].lower() == street:
             clinic_on_street.append(i)
-    bot.send_message(message.chat.id, 'Введите дом:')
-    bot.register_next_step_handler(
-        message, choices_house_clinic, clinic_on_street)
+    if len(clinic_on_street) == 0:
+        bot.send_message(
+            message.chat.id, 'На этой улице нет поликлиники. Попробуйте ещё раз.')
+        on_click(
+            message_back['on_click'][0], message_back['on_click'][1])
+    else:
+        bot.send_message(message.chat.id, 'Введите дом:')
+        bot.register_next_step_handler(
+            message, choices_house_clinic, clinic_on_street)
 
 
 def choices_house_clinic(message, clinics):
+    """choices_house_clinic"""
     house = message.text.lower()
     message_back['choices_house_clinic'] = [message, clinics]
     clinic = []
-    keyword = types.ReplyKeyboardMarkup(
-        resize_keyboard=True, one_time_keyboard=True)
     for i in clinics:
-        if i[4].lower() == house:
+        if i[4].lower().rstrip('\r') == house:
             clinic.append(i)
+    if len(clinic) == 0:
+        bot.send_message(
+            message.chat.id, 'В этом доме нет поликлиники. попробуйте еще раз.')
+        choices_street_clinic(
+            message_back['choices_street_clinic'][0], message_back['choices_street_clinic'][1])
+    else:
+        keyword = types.ReplyKeyboardMarkup(
+            resize_keyboard=True, one_time_keyboard=True)
+        for i in clinic:
             keyword.add(types.KeyboardButton(str(i[1])))
-    bot.send_message(
-        message.chat.id, 'Выбери лечебное учереждение:', reply_markup=keyword)
-    bot.register_next_step_handler(message, view_drugs_on_clinic)
+        bot.send_message(
+            message.chat.id, 'Выбери лечебное учереждение:', reply_markup=keyword)
+        bot.register_next_step_handler(message, view_drugs_on_clinic, clinic)
 
 
-def view_drugs_on_clinic(message):
+def view_drugs_on_clinic(message, clinic):
+    """view drugs from the clinic"""
     text = message.text.lower()
-    message_back['view_drugs_on_clinic'] = [message]
-    global id_hospital
+    message_back['view_drugs_on_clinic'] = [message, clinic]
     appointment_id = 0
-    clinic = message_back['choices_house_clinic'][1]
+    id_clinic = 0
     for i in clinic:
         if text == i[1].lower():
             id_clinic = i[0]
@@ -227,6 +278,7 @@ def view_drugs_on_clinic(message):
     else:
         for i in problem_drugs:
             keyword.add(types.KeyboardButton(i))
+        keyword.add(types.KeyboardButton('К выбору города'))
         bot.send_message(message.chat.id, 'Выбери лекарство:',
                          reply_markup=keyword)
         bot.register_next_step_handler(
@@ -234,36 +286,40 @@ def view_drugs_on_clinic(message):
 
 
 def problem_and_comment(message, drugs):
+    """view problem and comment"""
     text = message.text.lower()
-    message_back['problem_and_comment'] = [message, drugs]
-    keyword = types.ReplyKeyboardMarkup(
-        resize_keyboard=True, one_time_keyboard=True)
-    keyword.add(types.KeyboardButton('Добавить комментарий'),
-                types.KeyboardButton('Назад'))
-    for i in drugs:
-        if i[1].lower() == text:
-            comment_clinic = data.get_comments(i[0])
-            problem = data.get_problem(i[3])
-            print(problem)
-            if len(comment_clinic) == 0:
-                bot.send_message(
-                    message.chat.id, f'{i[1]}: {problem}\nКоментарии:\nКомментариев нет!', reply_markup=keyword)
-                continue
-            if len(comment_clinic) == 1:
-                text_comment = comment_clinic[0]
-                bot.send_message(
-                    message.chat.id, f'{i[1]}: {problem}\nКоментарии:\n{text_comment}', reply_markup=keyword)
-            else:
-                text_comment = '\n'.join(comment_clinic[-2:len(comment)])
-                bot.send_message(
-                    message.chat.id, f'{i[1]}: {problem}\nКоментарии:\n{text_comment}', reply_markup=keyword)
-    bot.register_next_step_handler(message, add_comment_for_clinic, drugs)
+    if text == 'к выбору города':
+        start(message_back['start'])
+    else:
+        message_back['problem_and_comment'] = [message, drugs]
+        keyword = types.ReplyKeyboardMarkup(resize_keyboard=True,
+                                            one_time_keyboard=True)
+        keyword.add(types.KeyboardButton('Добавить комментарий'),
+                    types.KeyboardButton('Назад'))
+        for i in drugs:
+            text_comment = ''
+            if i[1].lower() == text:
+                comment_clinic = data.get_comments(i[0])
+                problem = data.get_problem(i[3])
+                if len(comment_clinic) == 1:
+                    text_comment = f'{comment_clinic[0][0]} от {comment_clinic[0][2]}: {comment_clinic[0][1]}\n'
+                elif len(comment_clinic) > 1:
+                    text_comment = f'{comment_clinic[-2][0]} от {comment_clinic[-2][2]}: {comment_clinic[-2][1]}\n'
+                    text_comment += f'{comment_clinic[-1][0]} от {comment_clinic[-1][2]}: {comment_clinic[-1][1]}\n'
+                else:
+                    text_comment = 'Комментариев нет!'
+                bot.send_message(message.chat.id,
+                                 f'{i[1]}: {problem}\nКомментарии:\n{text_comment}',
+                                 reply_markup=keyword)
+        bot.register_next_step_handler(message, add_comment_for_clinic, drugs)
 
 
 def add_comment_for_clinic(message, drugs):
+    """choices drug for comment"""
     text = message.text.lower()
     if text == 'назад':
-        view_drugs_on_clinic(message_back['view_drugs_on_clinic'])
+        view_drugs_on_clinic(
+            message_back['view_drugs_on_clinic'][0], message_back['view_drugs_on_clinic'][1])
     else:
         message_back['add_comment_for_clinic'] = [message, drugs]
         keyword = types.ReplyKeyboardMarkup(
@@ -273,15 +329,16 @@ def add_comment_for_clinic(message, drugs):
             keyword.add(types.KeyboardButton(f'{i[1]}: {problem}'))
         keyword.add(types.KeyboardButton('Назад'))
         bot.send_message(
-            message.chat.id, 'выбери лекарство для каомментария:', reply_markup=keyword)
+            message.chat.id, 'выбери лекарство для комментария:', reply_markup=keyword)
         bot.register_next_step_handler(message, update_comment_clinic, drugs)
 
 
 def update_comment_clinic(message, drugs):
+    """getting comment from user"""
     text = message.text.lower()
     if text == 'назад':
-        message_back.pop()
-        problem_and_comment(*message_back['problem_and_comment'])
+        problem_and_comment(
+            message_back['problem_and_comment'][0], message_back['problem_and_comment'][1])
     else:
         text = text.split(': ')
         message_back['update_comment_clinic'] = [message, drugs]
@@ -289,9 +346,10 @@ def update_comment_clinic(message, drugs):
         first_name = message.from_user.first_name if message.from_user.first_name else ''
         last_name = message.from_user.last_name if message.from_user.last_name else ''
         id_problem = data.get_id_problem(text[1])
+        id_drug = 0
         for i in drugs:
             if i[1] == text[0] and i[3] == id_problem:
-                id_drug = i[0] 
+                id_drug = i[0]
         user = {
             'id_drug': id_drug,
             'username': username,
@@ -304,13 +362,12 @@ def update_comment_clinic(message, drugs):
 
 
 def add_comment_clinic(message, user):
+    """added comment from the clinic"""
     text = data.add_comment_db(message.text, user)
-    if text == 'Комментарий добавлен.':
-        bot.send_message(message.chat.id, text)
-    else:
-        bot.send_message(
-            message.chat.id, text)
-    problem_and_comment(*message_back['problem_and_comment'])
+    bot.send_message(
+        message.chat.id, text)
+    problem_and_comment(
+        message_back['problem_and_comment'][0], message_back['problem_and_comment'][1])
 
 
 # keep_alive()

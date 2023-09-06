@@ -59,7 +59,7 @@ def get_problem(id_problem):
                           'id_problem': id_problem}).fetchall()
     cur.close()
     table.close()
-    return problem[0][0].strip('\r')
+    return problem[0][0]
 
 
 def get_comments(id_drug):
@@ -84,12 +84,13 @@ def add_comment_db(message, user):
                     (time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}"))
         table.commit()
     except sqlite3.Error:
-        return f'Произошла ошибка.\n Попробуйте позднее.'
+        return 'Произошла ошибка.\n Попробуйте позднее.'
     else:
         return 'Комментрий добавлен.'
     finally:
         cur.close()
         table.close()
+
 
 def view_problems():
     """view all problems"""
@@ -100,43 +101,49 @@ def view_problems():
     table.close()
     return problems
 
+
 def update_problem(id_problem, drug):
     """update problem for drug"""
     try:
-        table =sqlite3.connect('table.db')
+        table = sqlite3.connect('table.db')
         cur = table.cursor()
         data_request = "UPDATE drugs SET problem_id = ? WHERE id = ?"
-        cur.execute(data_request, (id_problem,drug))
+        cur.execute(data_request, (id_problem, drug))
         table.commit()
     except sqlite3.Error:
-        return f'Произошла ошибка.\n Попробуйте позднее.'
+        return 'Произошла ошибка.\n Попробуйте позднее.'
     else:
         return 'Проблема обновленна.'
     finally:
         cur.close()
         table.close()
 
+
 def get_drugs_in_clinic(id_clinic, appointment_id):
     """getting drugs of clinic"""
     table = sqlite3.connect('table.db')
     cursor = table.cursor()
-    data_request = "SELECT id FROM pharmacies WHERE hospital_id=" + str(id_clinic)
-    pharma = []
+    data_request = "SELECT id FROM pharmacies WHERE hospital_id=" + \
+        str(id_clinic)
+    pharmacy = []
     for el in cursor.execute(data_request):
-        pharma.append(el[0])
+        pharmacy.append(el[0])
     drugs = []
-    for i in pharma:
-        drugs += cursor.execute("SELECT * FROM drugs WHERE pharmacy_id=" + str(i)).fetchall()
+    for i in pharmacy:
+        drugs += cursor.execute("SELECT * FROM drugs WHERE pharmacy_id=" +
+                                str(i)).fetchall()
     drugs = [i for i in drugs if i[4] == appointment_id]
     cursor.close()
     table.close()
     return drugs
 
+
 def get_id_problem(name_problem):
+    """getting id problem by name"""
     table = sqlite3.connect('table.db')
     cursor = table.cursor()
-    name = cursor.execute("SELECT id FROM problems WHERE name=:name_problem", {'name_problem': f'{name_problem}\r'}).fetchall()
+    problem_id = cursor.execute("SELECT id FROM problems WHERE name=:name_problem", {
+                          'name_problem': f'{name_problem}'}).fetchall()
     cursor.close()
     table.close()
-    return (int(name[0][0]))
-
+    return (int(problem_id[0][0]))

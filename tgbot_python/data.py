@@ -1,6 +1,6 @@
 '''module for work with bd'''
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def get_cites():
@@ -15,28 +15,54 @@ def get_cites():
     return cites
 
 
-def get_pharmacies(id_city):
-    """getting a list of pharmacies in the city"""
-    table = sqlite3.connect('table.db')
-    cur = table.cursor()
-    pharmacy_list = []
-    for i in cur.execute("SELECT * FROM pharmacies WHERE city_id=:id_city;", {'id_city': id_city}):
-        pharmacy_list.append(i)
-    cur.close()
-    table.close()
-    return pharmacy_list
+def get_structure(address):
+    try:
+        table = sqlite3.connect('table.wife')
+        cur = table.cursor()
+        structure = []
+        for i in cur.execute("SELECT * FROM address WHERE city_id=:city_id AND street=:street AND house=:house", {'city_id': address[0], 'street': address[1], 'house': address[3]}):
+            structure.append(i)
+    except sqlite3.Error:
+        return 'Произошла ошибка.\n Попробуйте позднее, либо обратитесь в службу поддержки.'
+    else:
+        if len(structure) == 0:
+            return 'По этому адресу ничего нет, попробуйте снова.'
+        return structure
+    finally:
+        cur.close()
+        table.close()
 
 
-def get_clinic(id_city):
-    """getting a list of clinics in the city"""
-    table = sqlite3.connect('table.db')
-    cur = table.cursor()
-    clinics_list = []
-    for i in cur.execute("SELECT * FROM clinics WHERE city_id=:id_city;", {'id_city': id_city}):
-        clinics_list.append(i)
-    cur.close()
-    table.close()
-    return clinics_list
+def get_pharmacies(id_address):
+    try:
+        table = sqlite3.connect('table.wife')
+        cur = table.cursor()
+        pharmacy_list = []
+        for i in cur.execute("SELECT * FROM pharmacies WHERE address_id=:id_address;", {'id_address': id_address}):
+            pharmacy_list.append(i)
+    except sqlite3.Error:
+        return 'Произошла ошибка.\n Попробуйте позднее, либо обратитесь в службу поддержки.'
+    else:
+        return pharmacy_list
+    finally:
+        cur.close()
+        table.close()
+
+
+def get_clinic(id_address):
+    try:
+        table = sqlite3.connect('table.wife')
+        cur = table.cursor()
+        pharmacy_list = []
+        for i in cur.execute("SELECT * FROM clinics WHERE address_id=:id_address;", {'id_address': id_address}):
+            pharmacy_list.append(i)
+    except sqlite3.Error:
+        return 'Произошла ошибка.\n Попробуйте позднее, либо обратитесь в службу поддержки.'
+    else:
+        return pharmacy_list
+    finally:
+        cur.close()
+        table.close()
 
 
 def get_drugs(id_pharmacy):
@@ -77,7 +103,9 @@ def get_comments(id_drug):
 def add_comment_db(message, user):
     """insert comment in database"""
     try:
-        time = datetime.now().strftime('%d.%m.%Y %H:%M')
+        delta = timedelta(hours=3)
+        time = datetime.now() + delta
+        time = time.strftime('%d.%m.%Y %H:%M')
         table = sqlite3.connect('table.db')
         cur = table.cursor()
         cur.execute("INSERT INTO comments (date, descriptions, drugs_id, user_name)VALUES(?,?,?,?)",
@@ -132,7 +160,8 @@ def get_drugs_in_clinic(id_clinic, appointment_id):
     for i in pharmacy:
         drugs += cursor.execute("SELECT * FROM drugs WHERE pharmacy_id=" +
                                 str(i)).fetchall()
-    drugs = [i for i in drugs if i[4] == appointment_id]
+    if appointment_id != 3:
+        drugs = [i for i in drugs if i[4] == appointment_id]
     cursor.close()
     table.close()
     return drugs
@@ -143,7 +172,7 @@ def get_id_problem(name_problem):
     table = sqlite3.connect('table.db')
     cursor = table.cursor()
     problem_id = cursor.execute("SELECT id FROM problems WHERE name=:name_problem", {
-                          'name_problem': f'{name_problem}'}).fetchall()
+        'name_problem': f'{name_problem}'}).fetchall()
     cursor.close()
     table.close()
     return (int(problem_id[0][0]))

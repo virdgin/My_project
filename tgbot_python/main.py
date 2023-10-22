@@ -45,17 +45,6 @@ def main():
             start(user_bot.message_back['start'])
         else:
             address.append(message.text.lower().title())
-            bot.send_message(
-                message.chat.id, 'Введите дом:')
-            bot.register_next_step_handler(
-                message, choices_house, address)
-
-    def choices_house(message, address):
-        user_bot.message_back['choices_house'] = [message, address]
-        if message.text.lower() == '/start':
-            start(user_bot.message_back['start'])
-        else:
-            address.append(message.text.lower())
             structure = data.get_structure(address)
             if isinstance(structure, str):
                 bot.send_message(message.chat.id, structure)
@@ -75,16 +64,21 @@ def main():
                             bot.send_message(message.chat.id, value)
                             start(user_bot.message_back['start'])
                         point_dict['clinic'] += value
-                keyword = types.ReplyKeyboardMarkup(
-                    resize_keyboard=True, one_time_keyboard=True)
                 name_set = set()
                 for val in point_dict.values():
                     for i in val:
-                        name_set.add(i[1])
+                        if len(i) == 6:
+                            house = data.get_house(i[4])
+                        else:
+                            house = data.get_house(i[3])
+                        name_set.add(f'{i[1]}, дом: {house}')
+                keyword = types.ReplyKeyboardMarkup(
+                    resize_keyboard=True, one_time_keyboard=True)
                 keyword.add(*name_set)
                 bot.send_message(message.chat.id, 'Выберите:',
                                  reply_markup=keyword)
                 bot.register_next_step_handler(message, choices, point_dict)
+
 
     def choices(message, point_dict):
         """choices_house_pharmacy"""
@@ -93,12 +87,17 @@ def main():
         if message.text.lower() == '/start':
             start(user_bot.message_back['start'])
         else:
-            text = message.text
+            text = message.text.split(', ')
+            text = [text[0], *text[1].split()]
             your_flag = ''
             your_list = []
             for key, value in point_dict.items():
                 for elem in value:
-                    if text == elem[1]:
+                    if len(elem) == 6:
+                        house = data.get_house(elem[4])
+                    else:
+                        house = data.get_house(elem[3])
+                    if text[0] == elem[1] and house == text[-1]:
                         your_flag = key
                         your_list = value
                         break
@@ -110,8 +109,10 @@ def main():
     def drugs_pharmacy(message, your_list):
         user_bot.message_back['drugs_pharmacy'] = [message, your_list]
         drugs_list = []
+        text = text = message.text.split(', ')
         for i in your_list:
-            drugs_list += data.get_drugs(i[0])
+            if text[0] == i[1]:
+                drugs_list += data.get_drugs(i[0])
         drugs_name = set()
         for i in drugs_list:
             drugs_name.add(i[0][1])
@@ -174,7 +175,7 @@ def main():
             else:
                 for i in range(len(comments) - 1, -1, -1):
                     temp_text = temp_text + \
-                        f'{comments[i][0]} от {comments[i][2]}: \n{comments[i][1]}\n'
+                        f'{comments[i][0]} от {                     comments[i][2]}: \n{comments[i][1]}\n'
             keyword.add(types.KeyboardButton('Добавить комментарий'))
             keyword.add(types.KeyboardButton('В начало'),
                         types.KeyboardButton('Назад'))
@@ -234,11 +235,11 @@ def main():
                     bot.register_next_step_handler(message, comment)
 
     def drugs_clinic(message, your_list):
-        text = message.text.lower()
+        text = message.text.split(', ')[0]
         user_bot.message_back['drugs_clinic'] = [message, your_list]
         id_clinic = 0
         for i in your_list:
-            if text == i[1].lower():
+            if text == i[1]:
                 id_clinic = i[0]
                 break
         drugs = data.get_drugs_in_clinic(id_clinic)
@@ -282,9 +283,9 @@ def main():
                     else:
                         for i in range(len(comment_clinic) - 1, -1, -1):
                             text_comment = text_comment + \
-                                f'{comment_clinic[i][0]} от {comment_clinic[i][2]}: \n{comment_clinic[i][1]}\n'
+                                f'{comment_clinic[i][0]} от {                                 comment_clinic[i][2]}: \n{comment_clinic[i][1]}\n'
                     bot.send_message(message.chat.id,
-                                     f'{el[1]}: {problem}\nКомментарии:\n{text_comment}',
+                                     f'{el[1]}: {problem}\nКомментарии: \n{                              text_comment}',
                                      reply_markup=keyword)
             bot.register_next_step_handler(
                 message, add_comment_for_clinic, drugs)
@@ -303,7 +304,7 @@ def main():
                 one_time_keyboard=True, resize_keyboard=True)
             for i in drugs:
                 problem = data.get_problem(i[3])
-                keyword.add(types.KeyboardButton(f'{i[0]}-{i[1]}-{problem}'))
+                keyword.add(types.KeyboardButton(f'{i[0]}: {i[1]} {problem}'))
             keyword.add(types.KeyboardButton('Назад'))
             bot.send_message(
                 message.chat.id, 'выбери лекарство для комментария:', reply_markup=keyword)
@@ -319,7 +320,7 @@ def main():
             problem_and_comment(
                 user_bot.message_back['problem_and_comment'][0], user_bot.message_back['problem_and_comment'][1])
         else:
-            text = text.split('-')
+            text = text.split(': ')
             user_bot.message_back['update_comment_clinic'] = [message, drugs]
             username = f'@{message.from_user.username}' if message.from_user.username else ''
             first_name = message.from_user.first_name if message.from_user.first_name else ''

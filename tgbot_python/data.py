@@ -20,7 +20,7 @@ def get_structure(address):
         table = sqlite3.connect('table.wife')
         cur = table.cursor()
         structure = []
-        for i in cur.execute("SELECT id, pharmacy, clinic FROM address WHERE cities_id=:city_id AND street=:street AND house=:house;", {'city_id': address[0], 'street': address[1], 'house': address[2]}):
+        for i in cur.execute("SELECT id, pharmacy, clinic, house FROM address WHERE cities_id=:city_id AND street=:street;", {'city_id': address[0], 'street': address[1]}):
             structure.append(i)
     except sqlite3.Error:
         return 'Произошла ошибка.\n Попробуйте позднее, либо обратитесь в службу поддержки.'
@@ -48,6 +48,19 @@ def get_pharmacies(id_address):
         cur.close()
         table.close()
 
+
+def get_house(id_address):
+    try:
+        table = sqlite3.connect('table.wife')
+        cur = table.cursor()
+        house = cur.execute("SELECT house FROM address WHERE id=:id_address;", {'id_address': id_address}).fetchall()
+    except sqlite3.Error:
+        return 'Произошла ошибка.\n Попробуйте позднее, либо обратитесь в службу поддержки.'
+    else:
+        return house[0][0]
+    finally:
+        cur.close()
+        table.close()
 
 def get_clinic(id_address):
     try:
@@ -137,16 +150,16 @@ def update_problem(id_problem, drug):
     """update problem for drug"""
     try:
         table = sqlite3.connect('table.wife')
-        cur = table.cursor()
+        cursor = table.cursor()
         data_request = "UPDATE drugs SET problem_id = ? WHERE id = ?"
-        cur.execute(data_request, (id_problem, drug))
+        cursor.execute(data_request, (id_problem, drug))
         table.commit()
     except sqlite3.Error:
         return 'Произошла ошибка.\n Попробуйте позднее.'
     else:
         return 'Проблема обновленна.'
     finally:
-        cur.close()
+        cursor.close()
         table.close()
 
 
@@ -154,8 +167,7 @@ def get_drugs_in_clinic(id_clinic):
     """getting drugs of clinic"""
     table = sqlite3.connect('table.wife')
     cursor = table.cursor()
-    data_request = "SELECT id FROM pharmacies WHERE clinic_id=" + \
-        str(id_clinic)
+    data_request = "SELECT id FROM pharmacies WHERE clinic_id=" + str(id_clinic)
     pharmacy = []
     for el in cursor.execute(data_request):
         pharmacy.append(el[0])
@@ -181,3 +193,4 @@ def get_id_problem(name_problem):
     cursor.close()
     table.close()
     return (int(problem_id[0][0]))
+

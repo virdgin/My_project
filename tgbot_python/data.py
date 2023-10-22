@@ -1,11 +1,11 @@
 '''module for work with bd'''
 import sqlite3
 from datetime import datetime, timedelta
-
+FILENAME = "/data/table.wife" if "AMVERA" in os.environ else "table.wife"
 
 def get_cites():
     """getting a list cities"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cur = table.cursor()
     cites = []
     for i in cur.execute("SELECT id, name FROM cites;"):
@@ -17,7 +17,7 @@ def get_cites():
 
 def get_structure(address):
     try:
-        table = sqlite3.connect('table.wife')
+        table = sqlite3.connect(FILENAME)
         cur = table.cursor()
         structure = []
         for i in cur.execute("SELECT id, pharmacy, clinic, house FROM address WHERE cities_id=:city_id AND street=:street;", {'city_id': address[0], 'street': address[1]}):
@@ -35,7 +35,7 @@ def get_structure(address):
 
 def get_pharmacies(id_address):
     try:
-        table = sqlite3.connect('table.wife')
+        table = sqlite3.connect(FILENAME)
         cur = table.cursor()
         pharmacy_list = []
         for i in cur.execute("SELECT * FROM pharmacies WHERE address_id=:id_address;", {'id_address': id_address}):
@@ -51,7 +51,7 @@ def get_pharmacies(id_address):
 
 def get_house(id_address):
     try:
-        table = sqlite3.connect('table.wife')
+        table = sqlite3.connect(FILENAME)
         cur = table.cursor()
         house = cur.execute("SELECT house FROM address WHERE id=:id_address;", {'id_address': id_address}).fetchall()
     except sqlite3.Error:
@@ -64,7 +64,7 @@ def get_house(id_address):
 
 def get_clinic(id_address):
     try:
-        table = sqlite3.connect('table.wife')
+        table = sqlite3.connect(FILENAME)
         cur = table.cursor()
         pharmacy_list = []
         for i in cur.execute("SELECT * FROM clinics WHERE address_id=:id_address;", {'id_address': id_address}):
@@ -80,7 +80,7 @@ def get_clinic(id_address):
 
 def get_drugs(pharmacy):
     """getting a list of drugs in the pharmacy"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cur = table.cursor()
     drugs_list = []
     temp_drugs = []
@@ -96,7 +96,7 @@ def get_drugs(pharmacy):
 
 def get_problem(id_problem):
     """getting problem information"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cur = table.cursor()
     problem = cur.execute("SELECT name FROM problems WHERE id=:id_problem;", {
                           'id_problem': id_problem}).fetchall()
@@ -107,7 +107,7 @@ def get_problem(id_problem):
 
 def get_comments(id_drug):
     """getting comment information"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cur = table.cursor()
     comments = []
     for i in cur.execute("SELECT  date, descriptions, user_name FROM comments WHERE drugs_id=:id_drug ORDER BY id DESC LIMIT 5;", {'id_drug': id_drug}):
@@ -138,7 +138,7 @@ def add_comment_db(message, user):
 
 def view_problems():
     """view all problems"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cur = table.cursor()
     problems = cur.execute("SELECT id, name FROM problems;").fetchall()
     cur.close()
@@ -149,7 +149,7 @@ def view_problems():
 def update_problem(id_problem, drug):
     """update problem for drug"""
     try:
-        table = sqlite3.connect('table.wife')
+        table = sqlite3.connect(FILENAME)
         cursor = table.cursor()
         data_request = "UPDATE drugs SET problem_id = ? WHERE id = ?"
         cursor.execute(data_request, (id_problem, drug))
@@ -165,7 +165,7 @@ def update_problem(id_problem, drug):
 
 def get_drugs_in_clinic(id_clinic):
     """getting drugs of clinic"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cursor = table.cursor()
     data_request = "SELECT id FROM pharmacies WHERE clinic_id=" + str(id_clinic)
     pharmacy = []
@@ -186,7 +186,7 @@ def get_drugs_in_clinic(id_clinic):
 
 def get_id_problem(name_problem):
     """getting id problem by name"""
-    table = sqlite3.connect('table.wife')
+    table = sqlite3.connect(FILENAME)
     cursor = table.cursor()
     problem_id = cursor.execute("SELECT id FROM problems WHERE name=:name_problem", {
         'name_problem': f'{name_problem}'}).fetchall()

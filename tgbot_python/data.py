@@ -1,6 +1,7 @@
 '''module for work with bd'''
 import sqlite3
 from datetime import datetime, timedelta
+import os
 FILENAME = "/data/table.wife" if "AMVERA" in os.environ else "table.wife"
 
 def get_cites():
@@ -110,7 +111,7 @@ def get_comments(id_drug):
     table = sqlite3.connect(FILENAME)
     cur = table.cursor()
     comments = []
-    for i in cur.execute("SELECT  date, descriptions, user_name FROM comments WHERE drugs_id=:id_drug ORDER BY id DESC LIMIT 5;", {'id_drug': id_drug}):
+    for i in cur.execute("SELECT  date, descriptions, user_name, user_id FROM comments WHERE drugs_id=:id_drug ORDER BY id DESC LIMIT 5;", {'id_drug': id_drug}):
         comments.append(i)
     cur.close()
     table.close()
@@ -120,12 +121,12 @@ def get_comments(id_drug):
 def add_comment_db(message, user):
     """insert comment in database"""
     try:
-        time = datetime.now()
+        time = datetime.now() + timedelta(hours=3)
         time = time.strftime('%d.%m.%Y %H:%M')
-        table = sqlite3.connect('table.wife')
+        table = sqlite3.connect(FILENAME)
         cur = table.cursor()
-        cur.execute("INSERT INTO comments (date, descriptions, drugs_id, user_name)VALUES(?,?,?,?)",
-                    (time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}"))
+        cur.execute("INSERT INTO comments (date, descriptions, drugs_id, user_name, user_id)VALUES(?,?,?,?,?)",
+                    (time, message, user['id_drug'], f"{user['first_name']} {user['username']} {user['last_name']}", user['user_id']))
         table.commit()
     except sqlite3.Error:
         return 'Произошла ошибка.\n Попробуйте позднее.'
@@ -194,3 +195,63 @@ def get_id_problem(name_problem):
     table.close()
     return (int(problem_id[0][0]))
 
+
+def reply_for_pharmacy(id_drug):
+    try:
+        table = sqlite3.connect(FILENAME)
+        cursor = table.cursor()
+        reply = {}
+        data_request = "SELECT pharmacy_id FROM conn_d_ph WHERE drugs_id=" + str(id_drug)
+        pharmacy_id = cursor.execute(data_request).fetchall()[0][0]
+        data_request = "SELECT clinic_id FROM pharmacies WHERE id=" + str(pharmacy_id)
+        clinic_id = cursor.execute(data_request).fetchall()[0][0]
+        data_request = "SELECT name, address_id FROM clinics WHERE id=" + str(clinic_id)
+        clinic = cursor.execute(data_request).fetchall()
+        reply['clinic'] = (clinic[0][0])
+        data_request = "SELECT name, problem_id FROM drugs WHERE id=" + str(id_drug)
+        drug = cursor.execute(data_request).fetchall()
+        reply['drug'] = drug[0][0]
+        data_request = "SELECT name FROM problems WHERE id=" + str(drug[0][1])
+        problem = cursor.execute(data_request).fetchall()[0][0]
+        reply['problem'] = problem
+        data_request = "SELECT street, house FROM address WHERE id=" + str(clinic[0][1])
+        address = cursor.execute(data_request).fetchall()
+        reply['address'] = f"{address[0][0]}, {address[0][1]}"
+        text_reply = f"Новый комментарий\nКлиника: {reply['clinic']}\nАдрес: {reply['address']}\nЛекарство: {reply['drug']}\nПроблема: {reply['problem']}"
+    except sqlite3.Error:
+        return 'Произошла ошибка.\n Попробуйте позднее.'
+    else:
+        return text_reply
+    finally:
+        cursor.close()
+        table.close()
+        
+
+def reply_for_clinic(id_drug):
+    try:
+        table = sqlite3.connect(FILENAME)
+        cursor = table.cursor()
+        reply = {}
+        data_request = "SELECT pharmacy_id FROM conn_d_ph WHERE drugs_id=" + str(id_drug)
+        pharmacy_id = cursor.execute(data_request).fetchall()[0][0]
+        data_request = "SELECT name, address_id FROM pharmacies WHERE id=" + str(pharmacy_id)
+        pharmacy = cursor.execute(data_request).fetchall()
+        reply['pharmacy'] = pharmacy[0][0]
+        data_request = "SELECT name, problem_id FROM drugs WHERE id=" + str(id_drug)
+        drug = cursor.execute(data_request).fetchall()
+        reply['drug'] = drug[0][0]
+        data_request = "SELECT name FROM problems WHERE id=" + str(drug[0][1])
+        problem = cursor.execute(data_request).fetchall()[0][0]
+        reply['problem'] = problem
+        data_request = "SELECT street, house FROM address WHERE id=" + str(pharmacy[0][1])
+        address = cursor.execute(data_request).fetchall()
+        reply['address'] = f"{address[0][0]}, {address[0][1]}"
+        text_reply = f"Новый комментарий\nАптека: {reply['pharmacy']}\nАдрес: {reply['address']}\nЛекарство: {reply['drug']}\nПроблема: {reply['problem']}"
+    except sqlite3.Error:
+        return 'Произошла ошибка.\n Попробуйте позднее.'
+    else:
+        return text_reply
+    finally:
+        cursor.close()
+        table.close()
+        

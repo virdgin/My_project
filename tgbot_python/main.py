@@ -35,6 +35,8 @@ def main():
             if i[1].lower() == city:
                 address.append(str(i[0]))
                 break
+        else:
+            start(User_Bot.message_back['start'])
         bot.send_message(message.chat.id, 'Введите улицу:')
         user_bot.message_back['get_city'] = [message, cites]
         bot.register_next_step_handler(message, choices_street, address)
@@ -67,18 +69,14 @@ def main():
                 name_set = set()
                 for val in point_dict.values():
                     for i in val:
-                        if len(i) == 6:
-                            house = data.get_house(i[4])
-                        else:
-                            house = data.get_house(i[3])
-                        name_set.add(f'{i[1]}, дом: {house}')
+                        house = data.get_house(i[1])
+                        name_set.add(f'{i[2]}, дом: {house}')
                 keyword = types.ReplyKeyboardMarkup(
                     resize_keyboard=True, one_time_keyboard=True)
                 keyword.add(*name_set)
                 bot.send_message(message.chat.id, 'Выберите:',
                                  reply_markup=keyword)
                 bot.register_next_step_handler(message, choices, point_dict)
-
 
     def choices(message, point_dict):
         """choices_house_pharmacy"""
@@ -93,11 +91,8 @@ def main():
             your_list = []
             for key, value in point_dict.items():
                 for elem in value:
-                    if len(elem) == 6:
-                        house = data.get_house(elem[4])
-                    else:
-                        house = data.get_house(elem[3])
-                    if text[0] == elem[1] and house == text[-1]:
+                    house = data.get_house(elem[1])
+                    if text[0] == elem[2] and house == text[-1]:
                         your_flag = key
                         your_list = value
                         break
@@ -111,7 +106,7 @@ def main():
         drugs_list = []
         text = text = message.text.split(', ')
         for i in your_list:
-            if text[0] == i[1]:
+            if text[0] == i[2]:
                 drugs_list += data.get_drugs(i[0])
         drugs_name = set()
         for i in drugs_list:
@@ -194,11 +189,13 @@ def main():
             username = f'@{message.from_user.username}' if message.from_user.username else ''
             first_name = message.from_user.first_name if message.from_user.first_name else ''
             last_name = message.from_user.last_name if message.from_user.last_name else ''
+            user_id = message.from_user.id
             user = {
                 'id_drug': user_bot.id_drug,
                 'username': username,
                 'first_name': first_name,
-                'last_name': last_name
+                'last_name': last_name,
+                'user_id': user_id
             }
             bot.send_message(
                 message.chat.id, 'Напишите комментарий. Затем нажмите отправить.')
@@ -213,6 +210,10 @@ def main():
         elif message.text.lower() == 'назад':
             drugs_pharmacy(user_bot.message_back['drugs_pharmacy'][0],
                            user_bot.message_back['drugs_pharmacy'][1])
+        reply_user = data.get_comments(user['id_drug'])
+        if reply_user and reply_user[-1][-1] != user['user_id']:
+            reply = data.reply_for_pharmacy(user['id_drug'])
+            bot.send_message(reply_user[-1][-1], reply)
         text = data.add_comment_db(message.text, user)
         bot.send_message(
             message.chat.id, text)
@@ -224,6 +225,9 @@ def main():
         text = message.text.lower()
         if text == '/start':
             start(user_bot.message_back['start'])
+        elif message.text.lower() == 'назад':
+            drugs_pharmacy(user_bot.message_back['drugs_pharmacy'][0],
+                           user_bot.message_back['drugs_pharmacy'][1])
         else:
             for i in problems:
                 if i[1].rstrip('\r').lower() == text:
@@ -239,7 +243,7 @@ def main():
         user_bot.message_back['drugs_clinic'] = [message, your_list]
         id_clinic = 0
         for i in your_list:
-            if text == i[1]:
+            if text == i[2]:
                 id_clinic = i[0]
                 break
         drugs = data.get_drugs_in_clinic(id_clinic)
@@ -283,9 +287,9 @@ def main():
                     else:
                         for i in range(len(comment_clinic) - 1, -1, -1):
                             text_comment = text_comment + \
-                                f'{comment_clinic[i][0]} от {                                 comment_clinic[i][2]}: \n{comment_clinic[i][1]}\n'
+                                f'{comment_clinic[i][0]} от {comment_clinic[i][2]}: \n{comment_clinic[i][1]}\n'
                     bot.send_message(message.chat.id,
-                                     f'{el[1]}: {problem}\nКомментарии: \n{                              text_comment}',
+                                     f'{el[1]}: {problem}\nКомментарии: \n{text_comment}',
                                      reply_markup=keyword)
             bot.register_next_step_handler(
                 message, add_comment_for_clinic, drugs)
@@ -326,11 +330,13 @@ def main():
             first_name = message.from_user.first_name if message.from_user.first_name else ''
             last_name = message.from_user.last_name if message.from_user.last_name else ''
             id_drug = text[0]
+            user_id = message.from_user.id
             user = {
                 'id_drug': id_drug,
                 'username': username,
                 'first_name': first_name,
-                'last_name': last_name
+                'last_name': last_name,
+                'user_id': user_id
             }
             bot.send_message(
                 message.chat.id, 'Напишите комментарий. Затем нажмите отправить.')
@@ -343,11 +349,16 @@ def main():
         elif message.text.lower() == 'назад':
             drugs_clinic(
                 user_bot.message_back['drugs_clinic'][0], user_bot.message_back['drugs_clinic'][1])
-        text = data.add_comment_db(message.text, user)
-        bot.send_message(
-            message.chat.id, text)
-        drugs_clinic(
-            user_bot.message_back['drugs_clinic'][0], user_bot.message_back['drugs_clinic'][1])
+        else:
+            reply_user = data.get_comments(user['id_drug'])
+            if reply_user and reply_user[-1][-1] != user['user_id']:
+                reply = data.reply_for_clinic(user['id_drug'])
+                bot.send_message(reply_user[-1][-1], reply)
+            text = data.add_comment_db(message.text, user)
+            bot.send_message(
+                message.chat.id, text)
+            drugs_clinic(
+                user_bot.message_back['drugs_clinic'][0], user_bot.message_back['drugs_clinic'][1])
 
     bot.polling(non_stop=True, interval=0)
 

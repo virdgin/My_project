@@ -21,7 +21,6 @@ class MainMenu(Screen):
         super(MainMenu, self).__init__(**kw)
         box = BoxLayout(orientation='vertical')
         box.add_widget(
-            # наличие по препаратам , название аптеки, адрес, договоренности, дата визита
             Button(text='Аптеки', on_press=lambda x: set_screen('pharmacies')))
         box.add_widget(
             Button(text='Врачи', on_press=lambda x: set_screen('doctors')))
@@ -73,7 +72,7 @@ class Pharmacies(Screen):
         self.pharma_dict = {}
         self.read_csv()
         if len(self.dict_list) == 0:
-            for i in ['#Название', '#Адрес', '#Наличие', '#Договорённости', '#Дата визита']:
+            for i in ['#Название', '#Адрес', '#Наличие', '#Договорённости', '#Дата последнего визита']:
                 self.pharma_dict[i] = ''
         else:
             for el in self.dict_list:
@@ -85,8 +84,8 @@ class Pharmacies(Screen):
         self.table.remove_widget(self.txt)
         self.grid.clear_widgets()
         for key, value in self.pharma_dict.items():
-            self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]: {value}', size_hint_y=None,
-                                        height=dp(40), markup=True, on_press=self.put_new_pharma))
+            self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]:\n{value}', size_hint_y=None,
+                                        height=dp(40), text_size=(None, None), markup=True, on_press=self.put_new_pharma))
         self.grid.add_widget(Button(text='Сохранить', size_hint_y=None,
                                     height=dp(40), on_press=self.save_pharma))
 
@@ -106,7 +105,7 @@ class Pharmacies(Screen):
         else:
             self.grid.clear_widgets()
             self.label = Label(
-                text=f'[b]{data[0][1:]}[/b]', text_size=(150, None), markup=True)
+                text=f'[b]{data[0][1:]}[/b]',  font_size=dp(20), text_size=(None, None), markup=True, size_hint_y=None)
             self.grid.add_widget(self.label)
             self.text_update = TextInput(
                 text=data[1], multiline=True, size_hint_y=None, height=dp(40))
@@ -118,7 +117,7 @@ class Pharmacies(Screen):
 
     def get_new_pharma_info(self, *args):
         text = '#' + self.label.text[3:-4]
-        self.pharma_dict[text] = self.text_update.text
+        self.pharma_dict[text] = self.text_update.text.strip()
         self.write_csv()
         self.get_new_pharma()
 
@@ -132,7 +131,7 @@ class Pharmacies(Screen):
                 temp_list_pharma.add(temp)
         for el in temp_list_pharma:
             btn_pharm = Button(text=el, size_hint_y=None,
-                               height=dp(40), on_press=self.choices)
+                               height=dp(40), text_size=(None, None), on_press=self.choices)
             self.grid.add_widget(btn_pharm)
 
     def choices(self, *args):
@@ -149,8 +148,8 @@ class Pharmacies(Screen):
         self.grid.clear_widgets()
         for el in self.temp_set:
             for key, value in el.items():
-                self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]: {value}', size_hint_y=None,
-                                            height=dp(40), markup=True, on_press=self.put_pharma))
+                self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]:\n{value}', size_hint_y=None,
+                                            height=dp(40), markup=True, text_size=(None, None), on_press=self.put_pharma))
 
     def put_pharma(self, *args):
         data = args[0].text
@@ -166,13 +165,13 @@ class Pharmacies(Screen):
         else:
             self.grid.clear_widgets()
             self.label = Label(
-                text=f'[b]{data[0][1:]}[/b]', text_size=(150, None), markup=True)
+                text=f'[b]{data[0][1:]}[/b]',  font_size=dp(20), text_size=(None, None), markup=True, size_hint_y=None)
             self.grid.add_widget(self.label)
             self.text_update = TextInput(
                 text=data[1], multiline=True, size_hint_y=None, height=dp(40))
             self.grid.add_widget(self.text_update)
             self.grid.add_widget(Button(text='Назад', size_hint_y=None,
-                                        height=dp(40), markup=True, on_press=self.output_pharmacies))
+                                        height=dp(40), markup=True, text_size=(None, None), on_press=self.output_pharmacies))
             self.grid.add_widget(Button(text='Обновить', size_hint_y=None,
                                         height=dp(40), markup=True, on_press=self.get_info))
 
@@ -180,7 +179,7 @@ class Pharmacies(Screen):
         text = '#' + self.label.text[3:-4]
         for el in self.dict_list:
             if el == self.temp_set[0]:
-                el[text] = self.text_update.text
+                el[text] = self.text_update.text.strip()
                 break
         self.write_csv()
         self.output_pharmacies()
@@ -190,7 +189,7 @@ class Pharmacies(Screen):
         app = App.get_running_app()
         file_path = os.path.join(app.user_data_dir, 'pharmacies.csv')
         fieldnames = self.dict_list[0].keys() if self.dict_list else [
-            '#Название', '#Адрес', '#Наличие', '#Договорённости', '#Дата визита']
+            '#Название', '#Адрес', '#Наличие', '#Договорённости', '#Дата последнего визита']
         with open(file_path, 'w', encoding='utf-8', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
@@ -206,6 +205,7 @@ class Doctors(Screen):
         try:
             app = App.get_running_app()
             file_path = os.path.join(app.user_data_dir, 'doctors.csv')
+            # file_path = 'doctors.csv'
             self.dict_list = []
             if os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8') as file:
@@ -214,7 +214,6 @@ class Doctors(Screen):
             for el in self.dict_list:
                 el.setdefault('#Специальность', '')
                 el.setdefault('#Конкуренты', '')
-            print(self.dict_list)
 
         except Exception as e:
             self.dict_list = []
@@ -248,8 +247,8 @@ class Doctors(Screen):
         self.doctor_dict = {}
         self.read_csv()
         if len(self.dict_list) == 0:
-            for i in ['#Фамилия', '#Имя', '#Отчество', '#Место работы', '#Опыт',
-                      '#Потенциал', '#Договорённости', '#Примечание', '#Дата последнего визита', '#Специальность', '#Конкуренты']:
+            for i in ['#Фамилия', '#Имя', '#Отчество', '#Специальность', '#Место работы', '#Опыт',
+                      '#Потенциал', '#Договорённости', '#Примечание', '#Дата последнего визита', '#Конкуренты']:
                 self.doctor_dict[i] = ''
         else:
             for el in self.dict_list:
@@ -261,8 +260,8 @@ class Doctors(Screen):
         self.table.remove_widget(self.txt)
         self.grid.clear_widgets()
         for key, value in self.doctor_dict.items():
-            self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]: {value}', size_hint_y=None,
-                                        height=dp(40), markup=True, on_press=self.put_new_doctor))
+            self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]:\n{value}', size_hint_y=None,
+                                        height=dp(40), markup=True, text_size=(None, None), on_press=self.put_new_doctor))
         self.grid.add_widget(Button(text='Сохранить', size_hint_y=None,
                                     height=dp(40), on_press=self.save_doctor))
 
@@ -282,10 +281,14 @@ class Doctors(Screen):
         else:
             self.grid.clear_widgets()
             self.label = Label(
-                text=f'[b]{data[0][1:]}[/b]', text_size=(150, None), markup=True)
+                text=f'[b]{data[0][1:]}[/b]', font_size=dp(20), text_size=(None, None), markup=True, size_hint_y=None)
             self.grid.add_widget(self.label)
-            self.text_update = TextInput(
-                text=data[1], multiline=True, size_hint_y=None, height=dp(40))
+            if data[0] == '#Примечание':
+                self.text_update = TextInput(
+                    text=data[1], multiline=True, size_hint_y=None, height=dp(40))
+            else:
+                self.text_update = TextInput(
+                    text=data[1], multiline=False, size_hint_y=None, height=dp(40))
             self.grid.add_widget(self.text_update)
             self.grid.add_widget(Button(text='Сохранить', size_hint_y=None,
                                         height=dp(40), markup=True, on_press=self.get_new_doctor_info))
@@ -294,7 +297,7 @@ class Doctors(Screen):
 
     def get_new_doctor_info(self, *args):
         text = '#' + self.label.text[3:-4]
-        self.doctor_dict[text] = self.text_update.text
+        self.doctor_dict[text] = self.text_update.text.strip()
         self.get_new_doctor()
 
     def on_text(self, *args):
@@ -329,7 +332,7 @@ class Doctors(Screen):
         for el in self.dict_list:
             if el['#Место работы'].lower() == data.lower():
                 self.grid.add_widget(Button(text=f"{el['#Фамилия']} {el['#Имя']} {el['#Отчество']}", size_hint_y=None,
-                                            height=dp(40), markup=True, on_press=self.choices))
+                                            height=dp(50), markup=True, text_size=(None, None), on_press=self.choices))
 
     def output_doctors(self, *args):
         self.table.remove_widget(self.txt)
@@ -337,7 +340,13 @@ class Doctors(Screen):
         for el in self.temp_set:
             for key, value in el.items():
                 self.grid.add_widget(Button(text=f'[b]{key[1:]}[/b]:\n{value}', size_hint_y=None,
-                                            height=dp(40), markup=True, on_press=self.put_doctors))
+                                            height=dp(50), markup=True, text_size=(None, None), on_press=self.put_doctors))
+        self.grid.add_widget(Button(text='Назад', size_hint_y=None,
+                                    height=dp(40), markup=True, on_press=self.back))
+
+    def back(self, *args):
+        self.clear_widgets()
+        self.on_enter()
 
     def put_doctors(self, *args):
         data = args[0].text
@@ -350,13 +359,18 @@ class Doctors(Screen):
                     break
             self.write_csv()
             self.output_doctors()
-        elif data[0] in ['#Место работы', '#Опыт',  '#Потенциал', '#Договорённости', '#Примечание', '#Специальность', '#Конкуренты']:
+        # elif data[0] in ['#Место работы', '#Опыт',  '#Потенциал', '#Договорённости', '#Примечание', '#Специальность', '#Конкуренты']:
+        else:
             self.grid.clear_widgets()
             self.label = Label(
-                text=f'[b]{data[0][1:]}[/b]', text_size=(150, None), markup=True)
+                text=f'[b]{data[0][1:]}[/b]', font_size=dp(20), text_size=(None, None), markup=True, size_hint_y=None)
             self.grid.add_widget(self.label)
-            self.text_update = TextInput(
-                text=data[1], multiline=True, size_hint_y=None, height=dp(40))
+            if data[0] == '#Примечание':
+                self.text_update = TextInput(
+                    text=data[1], multiline=True, size_hint_y=None, height=dp(40))
+            else:
+                self.text_update = TextInput(
+                    text=data[1], multiline=False, size_hint_y=None, height=dp(40))
             self.grid.add_widget(self.text_update)
             self.grid.add_widget(Button(text='Назад', size_hint_y=None,
                                         height=dp(40), markup=True, on_press=self.output_doctors))
@@ -367,7 +381,7 @@ class Doctors(Screen):
         text = '#' + self.label.text[3:-4]
         for el in self.dict_list:
             if el == self.temp_set[0]:
-                el[text] = self.text_update.text
+                el[text] = self.text_update.text.strip()
                 break
         self.write_csv()
         self.output_doctors()
@@ -376,9 +390,18 @@ class Doctors(Screen):
         """Сохраняет данные в CSV файл."""
         app = App.get_running_app()
         file_path = os.path.join(app.user_data_dir, 'doctors.csv')
+        # file_path = 'doctors.csv'
+        temp_dict = {'#Фамилия': '', '#Имя': '', '#Отчество': '', '#Специальность': '', '#Место работы': '', '#Опыт': '',
+                     '#Потенциал': '', '#Договорённости': '', '#Примечание': '', '#Дата последнего визита': '', '#Конкуренты': ''}
+        temp_list = []
+        for el in self.dict_list:
+            for elem in temp_dict.keys():
+                temp_dict[elem] = el[elem]
+            temp_list.append(temp_dict)
+        self.dict_list = temp_list
         fieldnames = self.dict_list[0].keys() if self.dict_list else [
-            '#Фамилия', '#Имя', '#Отчество', '#Место работы', '#Опыт',
-            '#Потенциал', '#Договорённости', '#Примечание', '#Дата последнего визита', '#Специальность', '#Конкуренты']
+            '#Фамилия', '#Имя', '#Отчество', '#Специальность', '#Место работы', '#Опыт',
+            '#Потенциал', '#Договорённости', '#Примечание', '#Дата последнего визита', '#Конкуренты']
         with open(file_path, 'w', encoding='utf-8', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
